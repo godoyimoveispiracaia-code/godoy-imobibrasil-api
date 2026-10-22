@@ -66,3 +66,17 @@ consulta de status de conta. Nunca enviar o segredo como query string. Nenhum co
 Próxima fase: validar identidade e permissões da conta, confirmar rotas e paginação,
 definir destino/sentido da sincronização e implementar persistência, reconciliação e cota compartilhada
 antes de liberar operações de produção.
+
+## Descoberta manual no build
+
+O operador pode habilitar `IMOBIBRASIL_BUILD_PROBE=true` exclusivamente para um build
+supervisionado. O `posttest` executa um login com o JSON original do suporte
+(`login`, `password`, `manterLogin=true`, `origin=API`) e, somente se houver um
+token inequívoco, um GET de status da conta. Os três campos de formato de login
+devem corresponder a esse contrato. As flags gerais podem continuar `false`.
+O resultado registra apenas HTTP, caminho do token, indicadores de status
+permitidos e correspondência booleana do domínio esperado; nunca token, credenciais,
+corpo completo ou mensagens de erro do provedor. Não interpreta HTTP 200 como prova
+de conta ativa. Não executa no início/reinício do servidor e não repete chamadas.
+Desabilitar a flag assim que o build supervisionado registrar sua execução, antes
+de novos builds. Este teste não ativa sincronização nem libera operações de escrita.
