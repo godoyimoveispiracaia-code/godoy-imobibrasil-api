@@ -85,3 +85,12 @@ Com `IMOBIBRASIL_TOKEN_POINTER=auto`, a seleção ocorre somente quando existe u
 único campo de token reconhecido, em uma busca com limites de tamanho e profundidade.
 Múltiplos tokens bloqueiam a consulta. Nomes de contêineres desconhecidos são
 ocultados dos logs, mas não impedem o uso do token em memória no GET autorizado.
+
+
+## Validação supervisionada dos módulos
+
+`IMOBIBRASIL_READ_PROBE=true` executa uma única passagem no pós-teste do build; não roda na inicialização do serviço. Requer `IMOBIBRASIL_ENABLED=false`, `IMOBIBRASIL_CONTRACT_CONFIRMED=false` e `IMOBIBRASIL_BUILD_PROBE=false`. Desative a flag imediatamente após a passagem para impedir execuções em builds futuros.
+
+O diagnóstico usa exclusivamente API1, login seguro e consultas GET documentadas, com amostra de uma linha e intervalo de 6,1 s. Primeiro confere status e vincula a conta ao imóvel público Godoy 4306887/referência 369041; sem correspondência, interrompe antes das leituras privadas. Testa pessoa/lista com tipoCadastro=cliente, mensagem/lista e corretor/lista. Para negocio/lista exige IDs reais de codigoCliente e codigoCorretor; quando necessário obtém codigoCliente pela rota legada somente de leitura cliente/lista, sem presumir equivalência com codigoPessoa. Lista vazia confirma somente a resposta da rota, não leitura de um negócio existente.
+
+Não grava dados, não marca mensagens como lidas, não registra corpos, nomes, IDs de clientes, campos dinâmicos, tokens ou erros do provedor. Interrompe por 401/403/429, status=false ou cota restante zero; sem repetição automática. Os logs contêm apenas status HTTP, campos reconhecidos, quantidade da amostra e cabeçalhos numéricos de limite. Não implementa sincronização, importação ou regras de deduplicação.
