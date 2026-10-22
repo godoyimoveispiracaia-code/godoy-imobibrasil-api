@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url';
 import { extractToken } from './probe.js';
 
 const LOGIN = 'https://api1.imobibrasil.app/v1/app/account/login';
-const STATUS = 'https://api2.imobibrasil.app/v1/app/account/status';
+const STATUS = 'https://api1.imobibrasil.app/v1/app/account/status';
 
 // JSON Pointer: explicit response paths supplied only after support confirmation.
 export function pointer(object, path) {
