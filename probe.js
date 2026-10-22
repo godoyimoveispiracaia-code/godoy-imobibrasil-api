@@ -109,7 +109,7 @@ export async function runProbe(env, fetcher = fetch, sleep = ms => new Promise(r
     else result.tokenPointer = tokens[0].pointer;
     // Do not reuse or persist this token beyond this single status request.
     await sleep(6100);
-    const response = await fetcher('https://api2.imobibrasil.app/v1/app/account/status', {
+    const response = await fetcher('https://api1.imobibrasil.app/v1/app/account/status', {
       method: 'GET', redirect: 'error', signal: AbortSignal.timeout(15000),
       headers: { Accept: 'application/json', 'X-Authorization': `Bearer ${tokens[0].value}` },
     });

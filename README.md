@@ -28,7 +28,7 @@ Inserir segredos exclusivamente em **Render → serviço → Environment**. Não
 não colocar em arquivos Git, URLs, imagens ou logs. Para `ADMIN_API_KEY`, usar **Generate** no Render
 e manter o valor apenas em ambiente seguro. Mínimo 32 caracteres.
 
-Antes de habilitar, confirmar com o suporte o contrato de `api1`/`api2`, o tenant Godoy,
+Antes de habilitar, confirmar com o suporte o tenant Godoy e os parâmetros restantes do contrato em `api1`,
 o formato do login, os campos de credenciais, o caminho do token e a resposta de conta ativa.
 A documentação do site que exige o cabeçalho `token` não comprova este contrato `X-Authorization`.
 
@@ -54,7 +54,7 @@ consulta de status de conta. Nunca enviar o segredo como query string. Nenhum co
 ## Comportamento e limites
 
 - Login fixo: `POST https://api1.imobibrasil.app/v1/app/account/login`, `manterLogin=true`, `origin=API`.
-- Consulta fixa: `GET https://api2.imobibrasil.app/v1/app/account/status`, `X-Authorization: Bearer …`.
+- Consulta fixa: `GET https://api1.imobibrasil.app/v1/app/account/status`, `X-Authorization: Bearer …`.
 - Sem redirecionamentos, retries automáticos ou renovação automática; token apenas em memória durante cada teste.
 - Cada teste faz login novo porque a validade do token ainda precisa ser confirmada.
 - Uma validação por vez e intervalo mínimo de 6,1s entre chamadas de saída; 429 respeita `Retry-After`.

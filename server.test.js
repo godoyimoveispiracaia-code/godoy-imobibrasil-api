@@ -56,7 +56,7 @@ test('validation spaces requests, uses fixed hosts, returns only sanitized resul
   const result = await response.json();
   assert.equal(result.ok, true);
   assert.equal(calls[0].url, 'https://api1.imobibrasil.app/v1/app/account/login');
-  assert.equal(calls[1].url, 'https://api2.imobibrasil.app/v1/app/account/status');
+  assert.equal(calls[1].url, 'https://api1.imobibrasil.app/v1/app/account/status');
   assert.equal(calls[1].opts.method, 'GET');
   assert.equal(calls[0].opts.redirect, 'error');
   assert.ok(calls[1].clock - calls[0].clock >= 6100);

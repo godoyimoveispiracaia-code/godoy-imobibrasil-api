@@ -74,7 +74,7 @@ test('dynamic schema keys stay redacted while the token is used only in the auth
   const result = await runProbe(env, async (url, options) => {
     count++;
     if (count === 1) return Response.json({ private_customer_name: { token: 'fake-token' } });
-    assert.equal(url, 'https://api2.imobibrasil.app/v1/app/account/status');
+    assert.equal(url, 'https://api1.imobibrasil.app/v1/app/account/status');
     assert.equal(options.method, 'GET');
     assert.equal(options.headers['X-Authorization'], 'Bearer fake-token');
     return Response.json({ statusConta: true });
