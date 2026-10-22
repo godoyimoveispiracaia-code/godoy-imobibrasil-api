@@ -4,5 +4,6 @@
   "private": true,
   "type": "module",
   "engines": { "node": ">=22" },
-  "scripts": { "start": "node server.js", "test": "node --test", "posttest": "node probe.js" }
+  "scripts": { "start": "node server.js", "test": "node --test", "posttest": "node probe.js && node read-probe.js" }
 }
+
