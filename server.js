@@ -136,6 +136,12 @@ export function createApp({ env = process.env, fetcher = fetch, now = Date.now,
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const config = configuration(process.env);
+  // Allow operators to verify configuration without reading or logging secrets.
+  console.log(JSON.stringify({ event: 'configuration_status',
+    enabled: config.enabled, contractConfirmed: config.confirmed,
+    configured: config.ready, missing: config.missing, invalid: config.invalid,
+    automaticSync: false }));
   const server = createApp();
   server.requestTimeout = 30000;
   server.headersTimeout = 10000;
