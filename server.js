@@ -1,6 +1,7 @@
 import http from 'node:http';
 import { timingSafeEqual, createHash } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
+import { extractToken } from './probe.js';
 
 const LOGIN = 'https://api1.imobibrasil.app/v1/app/account/login';
 const STATUS = 'https://api2.imobibrasil.app/v1/app/account/status';
@@ -29,6 +30,7 @@ export function configuration(env) {
   }
   if (userField && userField === passwordField) invalid.push('IMOBIBRASIL_PASSWORD_FIELD');
   for (const key of ['IMOBIBRASIL_TOKEN_POINTER', 'IMOBIBRASIL_STATUS_POINTER']) {
+    if (key === 'IMOBIBRASIL_TOKEN_POINTER' && env[key] === 'auto') continue;
     if (env[key] && !env[key].startsWith('/')) invalid.push(key);
   }
   let expected;
@@ -122,7 +124,8 @@ export function createApp({ env = process.env, fetcher = fetch, now = Date.now,
         lastValidation = { at: new Date(now()).toISOString(), ok: false, stage: 'login', httpStatus: login.httpStatus };
         return send(502, lastValidation);
       }
-      const token = pointer(login.data, env.IMOBIBRASIL_TOKEN_POINTER);
+      const token = env.IMOBIBRASIL_TOKEN_POINTER === 'auto' ? extractToken(login.data) :
+        pointer(login.data, env.IMOBIBRASIL_TOKEN_POINTER);
       if (typeof token !== 'string' || !token.length || token.length > 16384 || /[\r\n]/.test(token)) throw new Error('token_missing');
       const result = await upstream(STATUS, { method: 'GET', headers: { Accept: 'application/json', 'X-Authorization': `Bearer ${token}` } });
       const ok = result.ok && pointer(result.data, env.IMOBIBRASIL_STATUS_POINTER) === config.expected;

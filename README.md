@@ -40,7 +40,7 @@ A documentação do site que exige o cabeçalho `token` não comprova este contr
 | `IMOBIBRASIL_USER_FIELD` | Nome exato do campo de usuário informado pelo suporte |
 | `IMOBIBRASIL_PASSWORD_FIELD` | Nome exato do campo de senha informado pelo suporte |
 | `IMOBIBRASIL_LOGIN_ENCODING` | `json` ou `form`, conforme contrato |
-| `IMOBIBRASIL_TOKEN_POINTER` | JSON Pointer do token na resposta, conforme contrato |
+| `IMOBIBRASIL_TOKEN_POINTER` | JSON Pointer do token ou `auto` para um único token identificado na resposta |
 | `IMOBIBRASIL_STATUS_POINTER` | JSON Pointer do indicador de conta ativa, conforme contrato |
 | `IMOBIBRASIL_STATUS_EXPECTED_JSON` | Valor primitivo JSON que representa conta ativa, conforme contrato |
 | `IMOBIBRASIL_CONTRACT_CONFIRMED` | `true` somente após confirmar todo o contrato, inclusive a rota de status |
@@ -80,3 +80,8 @@ corpo completo ou mensagens de erro do provedor. Não interpreta HTTP 200 como p
 de conta ativa. Não executa no início/reinício do servidor e não repete chamadas.
 Desabilitar a flag assim que o build supervisionado registrar sua execução, antes
 de novos builds. Este teste não ativa sincronização nem libera operações de escrita.
+
+Com `IMOBIBRASIL_TOKEN_POINTER=auto`, a seleção ocorre somente quando existe um
+único campo de token reconhecido, em uma busca com limites de tamanho e profundidade.
+Múltiplos tokens bloqueiam a consulta. Nomes de contêineres desconhecidos são
+ocultados dos logs, mas não impedem o uso do token em memória no GET autorizado.

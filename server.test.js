@@ -88,3 +88,28 @@ test('429 preserves Retry-After and suppresses retries', async t => {
   assert.equal((await request('/v1/validate', { method: 'POST', headers: auth })).status, 429);
   assert.equal(count, 1);
 });
+
+test('manual validation supports one unambiguous token without exposing its structural path', async t => {
+  let count = 0;
+  const env = { ...synthetic, IMOBIBRASIL_TOKEN_POINTER: 'auto' };
+  assert.equal(configuration(env).ready, true);
+  const request = await launch(t, { env, sleep: async () => {}, fetcher: async (url, options) => {
+    count++;
+    if (count === 1) return Response.json({ opaque_container: { token: 'private-token' } });
+    assert.equal(options.headers['X-Authorization'], 'Bearer private-token');
+    return Response.json({ result: { testActive: true } });
+  } });
+  const response = await request('/v1/validate', { method: 'POST', headers: auth });
+  assert.equal(response.status, 200);
+  assert.doesNotMatch(await response.text(), /private-token|opaque_container/);
+});
+
+test('ambiguous automatic tokens block manual account requests', async t => {
+  let count = 0;
+  const request = await launch(t, { env: { ...synthetic, IMOBIBRASIL_TOKEN_POINTER: 'auto' }, fetcher: async () => {
+    count++;
+    return Response.json({ token: 'fake-one', data: { token: 'fake-two' } });
+  } });
+  assert.equal((await request('/v1/validate', { method: 'POST', headers: auth })).status, 502);
+  assert.equal(count, 1);
+});

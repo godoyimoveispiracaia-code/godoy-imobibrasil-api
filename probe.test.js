@@ -69,13 +69,18 @@ test('discovers access token within additional known response containers', async
   assert.doesNotMatch(JSON.stringify(result), /private-access-token/);
 });
 
-test('dynamic schema keys are redacted and prevent use of token', async () => {
+test('dynamic schema keys stay redacted while the token is used only in the authorized GET', async () => {
   let count = 0;
-  const result = await runProbe(env, async () => {
+  const result = await runProbe(env, async (url, options) => {
     count++;
-    return Response.json({ private_customer_name: { token: 'fake-token' } });
-  });
-  assert.equal(count, 1);
+    if (count === 1) return Response.json({ private_customer_name: { token: 'fake-token' } });
+    assert.equal(url, 'https://api2.imobibrasil.app/v1/app/account/status');
+    assert.equal(options.method, 'GET');
+    assert.equal(options.headers['X-Authorization'], 'Bearer fake-token');
+    return Response.json({ statusConta: true });
+  }, async () => {});
+  assert.equal(count, 2);
   assert.equal(result.tokenPathRedacted, true);
+  assert.equal(result.tokenSelection, 'auto');
   assert.doesNotMatch(JSON.stringify(result), /private_customer_name|fake-token/);
 });

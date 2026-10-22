@@ -28,6 +28,11 @@ function discoverTokens(value, path = '', depth = 0, safePath = true, budget = {
   return found;
 }
 
+export function extractToken(body) {
+  const matches = discoverTokens(body);
+  return matches.length === 1 ? matches[0].value : undefined;
+}
+
 function loginSummary(body) {
   const indicators = scan(body, ['status', 'success', 'sucesso'])
     .filter(item => typeof item.value === 'boolean' || (typeof item.value === 'number' && [0, 1].includes(item.value)));
@@ -99,8 +104,9 @@ export async function runProbe(env, fetcher = fetch, sleep = ms => new Promise(r
     const tokens = discoverTokens(body);
     result.tokenCandidateCount = tokens.length;
     if (tokens.length !== 1) return result;
-    if (tokens[0].pointer === null) { result.tokenPathRedacted = true; return result; }
-    result.tokenPointer = tokens[0].pointer;
+    result.tokenSelection = 'auto';
+    if (tokens[0].pointer === null) result.tokenPathRedacted = true;
+    else result.tokenPointer = tokens[0].pointer;
     // Do not reuse or persist this token beyond this single status request.
     await sleep(6100);
     const response = await fetcher('https://api2.imobibrasil.app/v1/app/account/status', {
