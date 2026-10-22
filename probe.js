@@ -3,6 +3,54 @@ import { pathToFileURL } from 'node:url';
 // Manual build-time discovery only; disabled by default and never run at startup.
 // Response values and credential-bearing errors must never reach logs.
 const containers = ['data', 'result', 'response', 'account', 'auth', 'session'];
+const safeContainers = new Set([...containers, 'retorno', 'dados', 'payload', 'body', 'authentication', 'tokens']);
+const tokenKeys = new Set(['token', 'access_token', 'accesstoken', 'jwt', 'bearertoken', 'authorizationtoken']);
+const jsonKey = key => key.replace(/~/g, '~0').replace(/\//g, '~1');
+
+// Search the actual response, while only reporting structural paths whose
+// components are known schema words. Unknown/dynamic keys never reach logs.
+function discoverTokens(value, path = '', depth = 0, safePath = true, budget = { remaining: 300 }) {
+  if (depth > 8 || --budget.remaining < 0) return [];
+  if (path === '' && typeof value === 'string') {
+    return /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(value) ? [{ pointer: '', value }] : [];
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
+  const found = [];
+  for (const [key, child] of Object.entries(value)) {
+    const childPath = `${path}/${jsonKey(key)}`;
+    if (tokenKeys.has(key.toLowerCase()) && typeof child === 'string' &&
+        child.length > 0 && child.length <= 16384 && !/[\r\n]/.test(child)) {
+      found.push({ pointer: safePath ? childPath : null, value: child });
+    } else if (typeof child === 'object' && child !== null) {
+      found.push(...discoverTokens(child, childPath, depth + 1, safePath && safeContainers.has(key), budget));
+    }
+  }
+  return found;
+}
+
+function loginSummary(body) {
+  const indicators = scan(body, ['status', 'success', 'sucesso'])
+    .filter(item => typeof item.value === 'boolean' || (typeof item.value === 'number' && [0, 1].includes(item.value)));
+  const rootFields = body && typeof body === 'object' && !Array.isArray(body) ?
+    Object.keys(body).filter(k => safeContainers.has(k) || tokenKeys.has(k.toLowerCase()) ||
+      ['status', 'success', 'sucesso', 'error', 'errors', 'message', 'mensagem', 'msg', 'code'].includes(k)) : [];
+  const summary = { rootType: Array.isArray(body) ? 'array' : body === null ? 'null' : typeof body,
+    recognizedRootFields: rootFields, indicators };
+  const messages = scan(body, ['message', 'mensagem', 'error', 'errors', 'msg']);
+  // Classify known error concepts locally; never output a provider's message.
+  for (const { value } of messages) {
+    const items = Array.isArray(value) ? value : [value];
+    for (const item of items) {
+      if (typeof item !== 'string') continue;
+      const normalized = item.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      if (/(senha|password|credencia|login)/.test(normalized) && /(invalid|incorret|nao confere|nao encontr)/.test(normalized)) summary.errorClass = 'credentials_rejected';
+      else if (/bloquead|blocked|suspens/.test(normalized)) summary.errorClass = 'account_blocked';
+      else if (/(origin|origem)/.test(normalized) && /invalid|incorret|nao permit/.test(normalized)) summary.errorClass = 'origin_rejected';
+    }
+  }
+  summary.explicitFailure = indicators.some(item => item.value === false || item.value === 0) || !!summary.errorClass;
+  return summary;
+}
 function scan(value, keys, path = '', depth = 0) {
   if (!value || typeof value !== 'object' || Array.isArray(value) || depth > 3) return [];
   const found = keys.filter(key => Object.hasOwn(value, key))
@@ -46,10 +94,12 @@ export async function runProbe(env, fetcher = fetch, sleep = ms => new Promise(r
     result.loginHttpStatus = login.status;
     if (!login.ok) { await login.body?.cancel(); return result; }
     const body = await boundedJson(login);
-    const tokens = scan(body, ['token', 'access_token', 'accessToken'])
-      .filter(item => typeof item.value === 'string' && item.value.length > 0 && item.value.length <= 16384 && !/[\r\n]/.test(item.value));
+    result.loginSummary = loginSummary(body);
+    if (result.loginSummary.explicitFailure) return result;
+    const tokens = discoverTokens(body);
     result.tokenCandidateCount = tokens.length;
     if (tokens.length !== 1) return result;
+    if (tokens[0].pointer === null) { result.tokenPathRedacted = true; return result; }
     result.tokenPointer = tokens[0].pointer;
     // Do not reuse or persist this token beyond this single status request.
     await sleep(6100);
