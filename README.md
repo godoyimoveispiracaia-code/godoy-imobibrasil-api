@@ -91,6 +91,25 @@ ocultados dos logs, mas não impedem o uso do token em memória no GET autorizad
 
 `IMOBIBRASIL_READ_PROBE=true` executa uma única passagem no pós-teste do build; não roda na inicialização do serviço. Requer `IMOBIBRASIL_ENABLED=false`, `IMOBIBRASIL_CONTRACT_CONFIRMED=false` e `IMOBIBRASIL_BUILD_PROBE=false`. Desative a flag imediatamente após a passagem para impedir execuções em builds futuros.
 
-O diagnóstico usa exclusivamente API1, login seguro e consultas GET documentadas, com amostra de uma linha e intervalo de 6,1 s. Primeiro confere status e vincula a conta ao imóvel público Godoy 4306887/referência 369041; sem correspondência, interrompe antes das leituras privadas. Testa pessoa/lista com tipoCadastro=cliente, mensagem/lista e corretor/lista. Para negocio/lista exige IDs reais de codigoCliente e codigoCorretor; quando necessário obtém codigoCliente pela rota legada somente de leitura cliente/lista, sem presumir equivalência com codigoPessoa. Lista vazia confirma somente a resposta da rota, não leitura de um negócio existente.
+O diagnóstico segue a documentação do CRM indicada pelo suporte em 23/10/2026:
+https://api1.imobibrasil.app/v1/documentacao/index.html
+Usa API1 e X-Authorization: Bearer, com token e credenciais somente em memória.
+Primeiro confirma o domínio em resultSet.user.site do login, consulta account/perfil
+e confere o imóvel público Godoy 4306887/referência 369041 usando referenciaImovel.
+Só depois consulta account/permissao, pessoa/lista com tipoCadastro=cliente na query,
+lead/lista, negocio/lista e mensagem/lista. Amostras de uma linha, até oito chamadas,
+intervalo de 6,1 s; sem escrita, logout ou marcação de leitura.
+A documentação CRM torna os filtros codigoCliente/codigoCorretor opcionais nos negócios.
+Não usa rotas legadas nem presume equivalência de IDs.
 
-Não grava dados, não marca mensagens como lidas, não registra corpos, nomes, IDs de clientes, campos dinâmicos, tokens ou erros do provedor. Interrompe por 401/403/429, status=false ou cota restante zero; sem repetição automática. Os logs contêm apenas status HTTP, campos reconhecidos, quantidade da amostra e cabeçalhos numéricos de limite. Não implementa sincronização, importação ou regras de deduplicação.
+O antigo account/status não está no contrato CRM indicado; statusConta=false não
+é mais tratado como prova de conta inativa no diagnóstico supervisionado, conforme
+esclarecimento do suporte. Identidade e consultas documentadas passam a validar o acesso.
+A rota administrativa antiga permanece desativada e ainda exige revisão antes de uso.
+
+Interrompe por 401/403/429, status=false, identidade divergente ou cota restante zero;
+sem repetição automática. Logs contêm somente rotas estáticas, status HTTP,
+campos reconhecidos, contagem da amostra e cabeçalhos numéricos de limite.
+Não registra corpos, nomes, contatos, IDs privados ou tokens. Lista vazia confirma
+somente a resposta da rota, não leitura de um registro existente.
+Não implementa sincronização, importação ou deduplicação.
