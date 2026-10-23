@@ -113,3 +113,33 @@ campos reconhecidos, contagem da amostra e cabeçalhos numéricos de limite.
 Não registra corpos, nomes, contatos, IDs privados ou tokens. Lista vazia confirma
 somente a resposta da rota, não leitura de um registro existente.
 Não implementa sincronização, importação ou deduplicação.
+# Sincronização dos novos leads do robô
+
+O executor em `sync/worker.mjs` é uma aplicação **local separada** para Windows,
+com estado SQLite durável. Ele não é iniciado pelo serviço de validação do Render.
+Lê a exportação `acompanhamento.json` já existente, estabelece um marco inicial sem
+importar histórico e insere somente novos leads WhatsApp não qualificados que
+não tenham telefone correspondente em pessoas, leads ou histórico do CRM.
+
+Estado da entrega: código e testes preparados; instalação no Windows, primeira
+inclusão real e ativação operacional ainda pendentes. A autorização do usuário
+não equivale a acesso remoto ao computador. Não há credenciais neste repositório.
+
+A origem 3 (WhatsApp Lead) é conferida na lista oficial de origens a cada login.
+O executor registra a conta que recebeu o contato. Não infere origem de campanha
+a partir de links compartilhados. Facebook, Instagram, formulários e portais
+necessitam de metadados e conexões próprias para atribuição confiável.
+
+O pacote de instalação deve conter `probe.js` e `package.json` na raiz; também
+`Install.ps1`, `Run.ps1`, `INSTALAR.bat`, `PAUSAR.bat` e `LEIA-ME.txt` copiados de
+`sync/`; os módulos `core.mjs`, `worker.mjs` e o teste ficam na subpasta `sync/`.
+Consulte `sync/LEIA-ME.txt` para instalação, limites, proteção de credenciais,
+conferência de ativação e pausa. O instalador não substitui o código do robô.
+
+Os testes usam dados sintéticos. Incluem reinício, resposta perdida após POST,
+contatos existentes, duas contas com o mesmo contato, exclusão de números
+internos, paginação incompleta e interrupção em 401/403/429. Nenhum teste cria
+cadastros na conta real. Como a API não documenta idempotência nativa, inclusões
+simultâneas por outros sistemas precisam ser coordenadas. Resultado ambíguo
+interrompe o executor para conferência; nunca dispara um segundo POST automático.
+

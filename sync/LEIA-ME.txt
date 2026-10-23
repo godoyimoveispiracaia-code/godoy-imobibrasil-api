@@ -1,0 +1,67 @@
+GODOY - NOVOS LEADS DO ROBO PARA O CRM IMOBIBRASIL
+
+ESTADO DESTA ENTREGA: implementacao preparada e testada com dados sinteticos.
+NAO instalada nem ativada no computador do robo por esta sessao.
+Os testes anteriores de autenticacao e leitura reais passaram; nenhum lead foi
+criado por esta entrega e a permissao de escrita ainda depende da primeira
+inclusao real de um novo contato. Nao existe teste de escrita ficticia em producao.
+
+INSTALACAO NO WINDOWS DO ROBO
+1. Extraia TODOS os arquivos do ZIP numa pasta. Mantenha o robo e o Drive abertos.
+2. Execute INSTALAR.bat no mesmo usuario Windows que utiliza o robo.
+3. Confirme o caminho do acompanhamento.json, informe numeros internos a excluir
+   e digite o usuario e senha do administrador na janela segura do Windows.
+4. A validacao inicial e somente leitura: login, identidade Godoy, origem WhatsApp,
+   pessoas, leads normais e historico completos. Se falhar, nao ativa a tarefa.
+5. A tarefa 'Godoy CRM Leads' inicia e passa a iniciar a cada logon. Confirme
+   eventos sync_cycle com automaticSync=true em %LOCALAPPDATA%\GodoyCRM\activity.log.
+   Isso confirma o executor; uma inclusao CRM so esta confirmada com created>0.
+
+FUNCIONAMENTO
+- Requer Node.js 22.13 ou mais recente, Windows ligado, usuario conectado, robo
+  funcionando e o arquivo de acompanhamento atualizado pelo Google Drive.
+- Consulta o arquivo a cada minuto. O primeiro inicio estabelece o marco inicial;
+  NAO importa historico. So mensagens recebidas depois desse marco sao elegiveis.
+- Somente contas PRINCIPAL e SECUNDARIO (com acento no nome exportado), conversas
+  individuais, telefone brasileiro valido, mensagens de entrada e contato externo.
+- Uma ficha de lead nao qualificado por telefone. Nao cria pessoa separada nem
+  negocio, nao altera registros existentes e nao envia mensagens a clientes.
+- Nome inicial factual 'Contato WhatsApp'. Sem inferir nome, interesse, temperatura,
+  negocio perdido, fechamento, visita ou consentimento a partir da conversa.
+- Origem CRM 3 = WhatsApp Lead, confirmada pela rota oficial de origens. Registra
+  conta que recebeu e primeiro texto recebido, em area privada do CRM.
+- Links de Instagram/Facebook e anuncios compartilhados NAO comprovam origem;
+  essas campanhas, formularios de site e portais nao estao conectados nesta versao.
+- Cadastro existente em pessoas, leads ou historico bloqueia uma nova inclusao.
+  Preserva CPF, dados do proprietario, imoveis, fotografias e negocios.
+- Estado SQLite duravel em pasta privada local. Nao apague state.sqlite ou arquivos
+  -wal/-shm, nao copie a instalacao para outro PC e nao rode dois executores.
+- Aguarda ao menos 6,1s entre chamadas (menos de 10/min). O limite do fornecedor
+  e compartilhado com outros usos do usuario: 401/403/429 interrompem a integracao
+  ate revisao. Nao ha repeticao automatica de POST com resposta ambigua.
+- Uma resposta perdida pode significar que o CRM criou o lead. O estado passa a
+  uncertain/review e a tarefa pausa. Conferir o CRM antes de qualquer retomada.
+- A API nao documenta chave de idempotencia/uniqueness por telefone; outro sistema
+  ou usuario criando simultaneamente o MESMO contato ainda exige coordenacao.
+  Esta versao evita repeticao local e nao altera nem mescla cadastros existentes.
+- A exportacao so contem mensagens observadas pelo robo. Lacunas, computador
+  desligado, Drive atrasado ou retencao do robo podem exigir revisao manual.
+
+PAUSA E DIAGNOSTICO
+Execute PAUSAR.bat. Nao apaga dados nem desfaz cadastros.
+Senha protegida por DPAPI/Export-Clixml do Windows, vinculada ao mesmo usuario e
+computador, fora do Drive e do bot.js. Nao envie credentials.xml, config.json,
+state.sqlite ou logs privados ao suporte. Nunca coloque senha no codigo publico.
+Para revisao: ler contadores e codigo fixo de erro em activity.log. Falhas de
+origem, autenticacao, permissao, retorno desconhecido ou paginacao incompleta
+impedem novas inclusoes. Nao desative essas verificacoes para 'forcar' ativacao.
+
+PENDENCIAS PARA CONCLUSAO REAL
+- Executar instalador no computador do robo (sem acesso remoto nesta sessao).
+- Validar consulta da lista completa de pessoas/leads/historico no ambiente real.
+- Confirmar primeira inclusao de um NOVO contato real, sem criar registro teste.
+- O instalador PowerShell foi revisado, mas nao executado em Windows nesta sessao.
+- Para Facebook, Instagram, sites e portais: obter metadados de origem comprovados
+  e conexoes proprias; nao sao deduzidos a partir de links nas mensagens.
+- Confirmar com ImobiBrasil idempotencia nativa, webhooks e exclusoes incrementais
+  antes de ampliar para sincronizacao bidirecional ou atualizacoes de negocios.
