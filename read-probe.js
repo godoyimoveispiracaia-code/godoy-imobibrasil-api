@@ -7,7 +7,7 @@ const base = 'https://api1.imobibrasil.app/v1/app/';
 const wrappers = ['resultSet', 'data', 'result', 'response', 'retorno', 'dados', 'payload', 'body'];
 const knownFields = ['status', 'success', 'statusConta', 'resultSet', 'data', 'page', 'per_page',
   'total_pages', 'total_items', 'codigoPessoa', 'codigoCliente', 'codigoCorretor',
-  'codigoMensagem', 'codigoNegocio', 'codigoImovel', 'referenciaImovel'];
+  'codigoMensagem', 'codigoLead', 'codigoNegocio', 'codigoImovel', 'referenciaImovel', 'permissoes'];
 
 function objects(value, depth = 0, budget = { left: 300 }) {
   if (!value || typeof value !== 'object' || depth > 8 || --budget.left < 0) return [];
@@ -80,7 +80,7 @@ export async function runReadProbe(env, fetcher = fetch, sleep = ms => new Promi
         { Accept: 'application/json', 'X-Authorization': `Bearer ${token}`, ...extraHeaders },
       ...(login ? { body: JSON.stringify({ login: env.IMOBIBRASIL_USERNAME, password: env.IMOBIBRASIL_PASSWORD, manterLogin: true, origin: 'API' }) } : {}),
     });
-    const check = { name, httpStatus: response.status };
+    const check = { name, httpStatus: response.status, method: login ? 'POST' : 'GET', path };
     for (const [header, key] of [['X-RateLimit-Limit', 'rateLimit'], ['X-RateLimit-Remaining', 'rateRemaining'], ['Retry-After', 'retryAfterSeconds']]) {
       const value = response.headers.get(header);
       if (value && /^\d{1,8}$/.test(value)) check[key] = Number(value);
@@ -116,28 +116,34 @@ export async function runReadProbe(env, fetcher = fetch, sleep = ms => new Promi
     const login = await request('login', 'account/login');
     token = login && extractToken(login);
     if (!token) return { ...result, stoppedReason: 'login_not_validated', requestCount: calls };
-    const status = await request('account_status', 'account/status');
-    if (!status || objects(status).some(o => o.statusConta === false)) return { ...result, stoppedReason: 'account_not_validated', requestCount: calls };
+    // CRM contract confirmed by support Hugo on 2026-10-23. The old
+    // account/status statusConta flag is not an account-activation gate.
+    // The documented JWT login identifies its tenant via resultSet.user.site.
+    let siteMatches = false;
+    try {
+      const site = new URL(login.resultSet?.user?.site);
+      siteMatches = site.protocol === 'https:' &&
+        site.hostname.toLowerCase().replace(/^www\./, '') === 'godoyimoveispiracaia.com.br';
+    } catch { /* Missing/invalid tenant identity fails closed. */ }
+    result.loginSiteMatches = siteMatches;
+    if (!siteMatches) return { ...result, stoppedReason: 'login_tenant_not_matched', requestCount: calls };
+    const lifetime = Number(login.resultSet?.expires_in) - Number(login.resultSet?.created_in);
+    if (Number.isSafeInteger(lifetime) && lifetime > 0) result.tokenLifetimeSeconds = lifetime;
+    const profile = await request('account_profile', 'account/perfil');
+    if (!profile) return { ...result, stoppedReason: 'profile_not_validated', requestCount: calls };
     // Match a real public Godoy listing by BOTH immutable ID and public reference.
     // This also tests the documented property list route before private CRM data.
-    const anchor = await request('property_identity', 'imovel/lista?page=1&per_page=1&referencia=369041', 'codigoImovel');
+    const anchor = await request('property_identity', 'imovel/lista?page=1&per_page=1&referenciaImovel=369041', 'codigoImovel');
     const matches = rows(anchor, 'codigoImovel')?.filter(row => String(row.codigoImovel) === '4306887' && String(row.referenciaImovel) === '369041');
     result.identityVerified = matches?.length === 1;
     if (!result.identityVerified) return { ...result, stoppedReason: 'godoy_property_not_matched', requestCount: calls };
-    const people = await request('clients', 'pessoa/lista?page=1&per_page=1', 'codigoPessoa', { tipoCadastro: 'cliente' });
-    await request('lead_messages', 'mensagem/lista?page=1&per_page=1', 'codigoMensagem');
-    const brokers = await request('brokers', 'corretor/lista?page=1&per_page=1', 'codigoCorretor');
-    let clientId = rows(people, 'codigoPessoa')?.find(row => positiveId(row?.codigoCliente))?.codigoCliente;
-    if (!clientId && !stopped) {
-      // Legacy READ only: obtain the documented codigoCliente, never assume
-      // that a unified codigoPessoa is interchangeable with this required ID.
-      const legacy = await request('legacy_client_identifier', 'cliente/lista?page=1&per_page=1', 'codigoCliente');
-      clientId = rows(legacy, 'codigoCliente')?.find(row => positiveId(row?.codigoCliente))?.codigoCliente;
-    }
-    const brokerId = rows(brokers, 'codigoCorretor')?.find(row => positiveId(row?.codigoCorretor))?.codigoCorretor;
-    if (positiveId(clientId) && positiveId(brokerId) && !stopped) {
-      await request('deals', `negocio/lista?page=1&per_page=1&codigoCliente=${encodeURIComponent(clientId)}&codigoCorretor=${encodeURIComponent(brokerId)}`, 'codigoNegocio');
-    } else result.dealsPendingReason = stopped ? 'prior_request_stopped_probe' : 'documented_identifiers_unavailable';
+    await request('permissions', 'account/permissao');
+    await request('clients', 'pessoa/lista?page=1&per_page=1&tipoCadastro=cliente', 'codigoPessoa');
+    await request('leads', 'lead/lista?page=1&per_page=1', 'codigoLead');
+    // The CRM documentation makes codigoCliente/codigoCorretor optional filters.
+    // No legacy ID conversion or fabricated IDs are needed for a minimal read.
+    await request('deals', 'negocio/lista?page=1&per_page=1', 'codigoNegocio');
+    await request('messages', 'mensagem/lista?page=1&per_page=1', 'codigoMensagem');
     return { ...result, requestCount: calls, stoppedOnProviderFailure: stopped };
   } catch {
     return { ...result, requestCount: calls, error: 'read_probe_failed' };
