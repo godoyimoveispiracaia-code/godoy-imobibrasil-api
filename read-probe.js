@@ -119,14 +119,21 @@ export async function runReadProbe(env, fetcher = fetch, sleep = ms => new Promi
     // CRM contract confirmed by support Hugo on 2026-10-23. The old
     // account/status statusConta flag is not an account-activation gate.
     // The documented JWT login identifies its tenant via resultSet.user.site.
-    let siteMatches = false;
-    try {
-      const site = new URL(login.resultSet?.user?.site);
-      siteMatches = site.protocol === 'https:' &&
-        site.hostname.toLowerCase().replace(/^www\./, '') === 'godoyimoveispiracaia.com.br';
-    } catch { /* Missing/invalid tenant identity fails closed. */ }
+    const sites = objects(login).filter(o => typeof o.site === 'string' && o.site.trim()).map(o => o.site.trim());
+    const siteMatches = sites.some(value => {
+      try {
+        // A public website value may use http or omit its scheme. It is only
+        // compared locally; credentials still go exclusively to fixed HTTPS API1.
+        const site = new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`);
+        return ['https:', 'http:'].includes(site.protocol) && !site.username && !site.password &&
+          site.hostname.toLowerCase().replace(/^www\./, '') === 'godoyimoveispiracaia.com.br';
+      } catch { return false; }
+    });
     result.loginSiteMatches = siteMatches;
-    if (!siteMatches) return { ...result, stoppedReason: 'login_tenant_not_matched', requestCount: calls };
+    result.loginSitePresent = sites.length > 0;
+    // If login omits site, the documented profile and the exact known public
+    // property anchor below provide the identity check before CRM client reads.
+    if (sites.length && !siteMatches) return { ...result, stoppedReason: 'login_tenant_not_matched', requestCount: calls };
     const lifetime = Number(login.resultSet?.expires_in) - Number(login.resultSet?.created_in);
     if (Number.isSafeInteger(lifetime) && lifetime > 0) result.tokenLifetimeSeconds = lifetime;
     const profile = await request('account_profile', 'account/perfil');

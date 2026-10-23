@@ -81,8 +81,8 @@ test('provider failure in HTTP 200 stops subsequent reads', async () => {
   assert.equal(calls, 5);
   assert.equal(result.checks.at(-1).readAccepted, false);
 });
-test('missing or incorrect login tenant stops before all subsequent requests', async () => {
-  for (const site of [undefined, 'https://other.example.com', 'http://www.godoyimoveispiracaia.com.br']) {
+test('incorrect login tenant stops before all subsequent requests', async () => {
+  for (const site of ['https://other.example.com', 'https://godoyimoveispiracaia.com.br.other.example.com']) {
     let calls = 0;
     const result = await runReadProbe(env, async () => {
       calls++;
@@ -91,5 +91,19 @@ test('missing or incorrect login tenant stops before all subsequent requests', a
     assert.equal(calls, 1);
     assert.equal(result.identityVerified, false);
     assert.equal(result.stoppedReason, 'login_tenant_not_matched');
+  }
+});
+test('missing site or public http/bare site still requires the exact property anchor', async () => {
+  for (const site of [undefined, 'http://www.godoyimoveispiracaia.com.br', 'www.godoyimoveispiracaia.com.br']) {
+    const paths = [];
+    const result = await runReadProbe(env, async url => {
+      const path = url.split('/v1/app/')[1]; paths.push(path);
+      const body = normal(path);
+      if (path === 'account/login') body.resultSet.user.site = site;
+      return Response.json(body);
+    }, async () => {});
+    assert.equal(result.identityVerified, true);
+    assert.equal(paths.length, 8);
+    assert.ok(paths.indexOf('imovel/lista?page=1&per_page=1&referenciaImovel=369041') < paths.findIndex(p => p.startsWith('pessoa/lista')));
   }
 });
