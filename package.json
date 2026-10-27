@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22" },
+  "engines": { "node": ">=22.23.4 <23 || >=24.22.1 <25 || >=26.12.1 <27" },
   "scripts": { "start": "node server.js", "test": "node --test", "posttest": "node probe.js && node read-probe.js" }
 }
+
 

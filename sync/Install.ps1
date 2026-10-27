@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 if ($env:OS -ne 'Windows_NT') { throw 'Este instalador requer o Windows do robo.' }
-& node --input-type=module -e "import {DatabaseSync} from 'node:sqlite'; const db=new DatabaseSync(':memory:'); db.close();"
-if ($LASTEXITCODE -ne 0) { throw 'Instale Node.js 22.13 ou mais recente antes de continuar.' }
+& node --input-type=module -e "import {DatabaseSync} from 'node:sqlite'; const [major,minor,patch]=process.versions.node.split('.').map(Number); const minimum={22:[23,4],24:[22,1],26:[12,1]}[major]; if(!minimum || minor<minimum[0] || (minor===minimum[0] && patch<minimum[1])) process.exit(1); const db=new DatabaseSync(':memory:'); db.close();"
+if ($LASTEXITCODE -ne 0) { throw 'Instale Node.js 22.23.4+, 24.22.1+ ou 26.12.1+ na respectiva versao principal, com suporte a SQLite, antes de continuar.' }
 $source = Read-Host 'Caminho completo do acompanhamento.json [G:\Meu Drive\Godoy Captacoes WhatsApp\acompanhamento.json]'
 if ([string]::IsNullOrWhiteSpace($source)) { $source = 'G:\Meu Drive\Godoy Capta' + [char]0xE7 + [char]0xF5 + 'es WhatsApp\acompanhamento.json' }
 if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { throw 'Arquivo de acompanhamento nao encontrado. Mantenha o robo e o Google Drive abertos.' }
@@ -39,3 +39,4 @@ $settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -StartWhen
 Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Settings $settings -Description 'Novos leads WhatsApp do robo para o CRM ImobiBrasil; estado duravel local; sem alterar imoveis.' | Out-Null
 Start-ScheduledTask -TaskName $taskName
 Write-Host 'Validacao inicial concluida e tarefa iniciada. Confira activity.log para confirmar os ciclos. O computador, o robo e o Drive precisam permanecer ligados.'
+

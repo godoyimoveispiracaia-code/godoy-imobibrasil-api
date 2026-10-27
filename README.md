@@ -5,7 +5,9 @@ Nenhum imóvel, lead, mensagem ou foto é incluído, alterado, excluído ou marc
 
 ## Executar e testar
 
-Node.js 22 ou superior; nenhuma dependência de terceiros.
+Node.js 22.23.4+, 24.22.1+ ou 26.12.1+, dentro da respectiva versão principal;
+nenhuma dependência de terceiros. Versões anteriores às correções de 21/10/2026
+e versões principais não listadas não fazem parte da configuração suportada.
 
 ```sh
 npm test
@@ -14,6 +16,44 @@ npm start
 
 Build no Render: `npm test`. Início: `npm start`. Host `0.0.0.0`, porta `PORT`.
 Health check: `GET /healthz` (indica apenas que o servidor responde).
+
+### Atualização de segurança — 27/10/2026
+
+O intervalo em `engines.node` exclui as versões anteriores às correções divulgadas
+para Node.js e certificados eMudhra. Isso define a versão solicitada pelo projeto;
+não atualiza um processo já iniciado e, por padrão, o npm não impõe `engines` como
+bloqueio de execução.
+
+No Render, conferir primeiro o `NODE_VERSION` do serviço e eventuais arquivos
+`.node-version` ou `.nvmrc`: todos têm precedência sobre `package.json`, nessa ordem.
+Manter a versão principal já utilizada e selecionar pelo menos 22.23.4, 24.22.1 ou
+26.12.1 conforme o caso, ou uma correção posterior da mesma linha. Confirmar a
+versão efetiva nos logs do build e no processo em execução. Não presumir que o
+serviço existe ou está corrigido apenas porque este repositório foi atualizado.
+
+O Dashboard continua sendo a fonte de configuração do serviço. Não alterar flags
+de diagnóstico ou sincronização durante a atualização de segurança. Antes de um
+novo build, verificar que `IMOBIBRASIL_BUILD_PROBE` e `IMOBIBRASIL_READ_PROBE` estão
+desativadas, pois o `posttest` pode fazer consultas reais quando habilitadas.
+Rebuild e redeploy de produção precisam de autorização explícita; um simples
+restart não recompila o runtime nem atualiza o armazenamento de certificados.
+Depois da implantação autorizada, verificar a versão do Node.js, os certificados,
+o health check e as funções que já estavam habilitadas.
+
+O executor local `sync/worker.mjs` também usa Node.js e HTTPS. A versão instalada
+no Windows precisa ser conferida separadamente; mudar este repositório não atualiza
+o computador nem o processo do Robô Godoy. Preservar `state.sqlite` e seus arquivos
+associados, credenciais e configuração. Não reinstalar sobre uma tarefa ativa.
+O teste do instalador verifica a versão corrigida e a disponibilidade de SQLite
+antes de solicitar credenciais; não substitui a verificação de uma instalação existente.
+Nenhum componente PHP foi identificado neste repositório; isso não atesta outros
+serviços, o site hospedado por terceiros ou o código completo do robô.
+
+Referências oficiais:
+- https://render.com/docs/advisory-emudhra
+- https://render.com/docs/node-version
+- https://nodejs.org/en/blog/vulnerability
+- https://render.com/docs/advisory-php2shell
 
 ## Estado inicial
 
@@ -142,4 +182,5 @@ internos, paginação incompleta e interrupção em 401/403/429. Nenhum teste cr
 cadastros na conta real. Como a API não documenta idempotência nativa, inclusões
 simultâneas por outros sistemas precisam ser coordenadas. Resultado ambíguo
 interrompe o executor para conferência; nunca dispara um segundo POST automático.
+
 
