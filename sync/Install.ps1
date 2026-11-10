@@ -13,6 +13,13 @@ $suppressed = @($suppressedInput.Split(',') | ForEach-Object { $_ -replace '\D',
 if ($suppressed.Count -lt 1) { throw 'Informe ao menos o numero com bloqueio absoluto antes da ativacao. Nao coloque em codigo publico.' }
 $credential = Get-Credential -Message 'Administrador do ImobiBrasil. A senha fica protegida pelo Windows deste usuario.'
 if ($null -eq $credential) { throw 'Credencial nao informada.' }
+$codeRoot = $PSScriptRoot
+$projectRoot = Split-Path -Parent $PSScriptRoot
+if (-not (Test-Path -LiteralPath (Join-Path $codeRoot 'probe.js'))) { $codeRoot = $projectRoot }
+$moduleRoot = $PSScriptRoot
+if (-not (Test-Path -LiteralPath (Join-Path $moduleRoot 'worker.mjs'))) { $moduleRoot = Join-Path $PSScriptRoot 'sync' }
+foreach ($relative in @('probe.js','package.json')) { if (-not (Test-Path -LiteralPath (Join-Path $codeRoot $relative))) { throw ('Arquivo obrigatorio ausente: ' + $relative) } }
+foreach ($relative in @('core.mjs','worker.mjs')) { if (-not (Test-Path -LiteralPath (Join-Path $moduleRoot $relative))) { throw ('Arquivo obrigatorio ausente: ' + $relative) } }
 $root = Join-Path $env:LOCALAPPDATA 'GodoyCRM'
 $taskName = 'Godoy CRM Leads'
 if (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) {
@@ -23,12 +30,12 @@ New-Item -ItemType Directory -Path $root -Force | Out-Null
 $sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
 & icacls $root /inheritance:r /grant:r "*${sid}:(OI)(CI)F" '*S-1-5-18:(OI)(CI)F' | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'Nao foi possivel proteger a pasta local.' }
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'probe.js') -Destination $root -Force
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'package.json') -Destination $root -Force
+Copy-Item -LiteralPath (Join-Path $codeRoot 'probe.js') -Destination $root -Force
+Copy-Item -LiteralPath (Join-Path $codeRoot 'package.json') -Destination $root -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Run.ps1') -Destination $root -Force
 New-Item -ItemType Directory -Path (Join-Path $root 'sync') -Force | Out-Null
 foreach ($name in @('core.mjs','worker.mjs')) {
-    Copy-Item -LiteralPath (Join-Path (Join-Path $PSScriptRoot 'sync') $name) -Destination (Join-Path $root 'sync') -Force
+    Copy-Item -LiteralPath (Join-Path $moduleRoot $name) -Destination (Join-Path $root 'sync') -Force
 }
 $credential | Export-Clixml -LiteralPath (Join-Path $root 'credentials.xml')
 @{ enabled = $true; source = $source; excludedPhones = $excluded; suppressedPhones = $suppressed; nodePath = (Get-Command node).Source } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $root 'config.json') -Encoding UTF8
