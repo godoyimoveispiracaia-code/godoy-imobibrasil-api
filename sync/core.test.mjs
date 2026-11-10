@@ -37,16 +37,16 @@ test('only explicit real-estate inquiries qualify for CRM leads', () => {
   ]) assert.equal(qualifiesRealEstate(msg), false, msg);
 });
 test('absolute contact suppression applies to snapshot even with qualifying text', () => {
-  const blockedPhone = '5511971994419';
+  const blockedPhone = '5511988887777';
   const c = convo({ telefone: blockedPhone, jid: blockedPhone + '@s.whatsapp.net' });
-  assert.deepEqual(collect(source([c]), config()), []);
+  assert.deepEqual(collect(source([c]), { ...config(), suppressedPhones: [blockedPhone] }), []);
 });
 test('write boundary refuses advertisements and blocked contacts even if feed bypasses ingestion', async t => {
   const { s } = state(t);
   let writes = 0;
-  const deps = { store: s, knownPhones: new Set(), ownership: s.ownership, api: async () => { writes++; return {status:true,resultSet:42}; } };
+  const deps = { store: s, knownPhones: new Set(), ownership: s.ownership, suppressedPhones: ['5511988887777'], api: async () => { writes++; return {status:true,resultSet:42}; } };
   assert.equal(await synchronizeOne({...event, text:'Black Friday de pranchas e stand up'}, deps), 'excluded');
-  assert.equal(await synchronizeOne({...event, phone:'5511971994419'}, deps), 'excluded');
+  assert.equal(await synchronizeOne({...event, phone:'5511988887777'}, deps), 'excluded');
   assert.equal(writes, 0);
 });
 
