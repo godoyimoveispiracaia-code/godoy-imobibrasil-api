@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { collect, phone, aliases, payload, synchronizeOne, siteMatches } from './core.mjs';
+import { collect, phone, aliases, payload, synchronizeOne, siteMatches, qualifiesRealEstate } from './core.mjs';
 import { openState, knownContacts, makeAPI } from './worker.mjs';
 
 const now = Date.parse('2026-10-23T18:00:00Z');
-const event = { id: 'a'.repeat(64), phone: '5511987654321', at: now - 1000, account: 'PRINCIPAL', text: 'Quero informações', origin: 3 };
+const event = { id: 'a'.repeat(64), phone: '5511987654321', at: now - 1000, account: 'PRINCIPAL', text: 'Quero informações sobre terrenos na represa', origin: 3 };
 const convo = (override = {}) => ({ conta: 'PRINCIPAL', telefone: event.phone, jid: event.phone + '@s.whatsapp.net',
-  mensagens: [{ sentido: 'entrada', quando: new Date(now - 1000).toISOString(), conta: 'PRINCIPAL', texto: 'Informações' }], ...override });
+  mensagens: [{ sentido: 'entrada', quando: new Date(now - 1000).toISOString(), conta: 'PRINCIPAL', texto: 'Quero informações sobre terrenos na represa' }], ...override });
 function source(conversas) { return { geradoEm: new Date(now).toISOString(), conversas }; }
 function config() { return { activatedAt: now - 10000, now, excludedPhones: ['5511911111111'] }; }
 function state(t) {
@@ -18,6 +18,38 @@ function state(t) {
   const s = openState(filename); t.after(() => { try { s.close(); } catch {} rmSync(dir, { recursive: true }); });
   return { s, filename };
 }
+
+test('only explicit real-estate inquiries qualify for CRM leads', () => {
+  for (const msg of [
+    'Quero informações sobre terrenos na represa', 'Procuro casa para alugar em Piracaia',
+    'Gostaria de ver tabela de lotes do Terras de Santa Maria', 'Tenho imóvel para vender'
+  ]) assert.equal(qualifiesRealEstate(msg), true, msg);
+  for (const msg of [
+    'Oi', 'Informações', 'Olá! Posso ter mais informações sobre isso?',
+    'Promoção de pranchas na Black Friday, 15% desconto e PIX',
+    'Operação de Venda Recorrente, inscrição no curso',
+    'A Prime Live vende nossos produtos Aqua Marina',
+    'Você tem interesse em comprar meus serviços?',
+    'O boleto do lote venceu, chave PIX para pagamento',
+    'Contrato do lote deve ser assinado no Clicksign',
+    'Olá, verificamos que foi registrado novo lead no ambiente da ImobiBrasil',
+    ''
+  ]) assert.equal(qualifiesRealEstate(msg), false, msg);
+});
+test('absolute contact suppression applies to snapshot even with qualifying text', () => {
+  const blockedPhone = '5511971994419';
+  const c = convo({ telefone: blockedPhone, jid: blockedPhone + '@s.whatsapp.net' });
+  assert.deepEqual(collect(source([c]), config()), []);
+});
+test('write boundary refuses advertisements and blocked contacts even if feed bypasses ingestion', async t => {
+  const { s } = state(t);
+  let writes = 0;
+  const deps = { store: s, knownPhones: new Set(), ownership: s.ownership, api: async () => { writes++; return {status:true,resultSet:42}; } };
+  assert.equal(await synchronizeOne({...event, text:'Black Friday de pranchas e stand up'}, deps), 'excluded');
+  assert.equal(await synchronizeOne({...event, phone:'5511971994419'}, deps), 'excluded');
+  assert.equal(writes, 0);
+});
+
 test('snapshot ingestion excludes history, outbound, groups, own contacts and opt-out', () => {
   const base = convo();
   const fixtures = [base, convo({ conta: 'CORRETOR' }), convo({ jid: '123@g.us' }), convo({ telefone: '5511911111111' }),
