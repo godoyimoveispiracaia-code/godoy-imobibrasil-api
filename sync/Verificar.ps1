@@ -20,7 +20,7 @@ if (Test-Path -LiteralPath $configPath) {
   try {
     $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
     Write-Host ('Config privada: EXISTE')
-    Write-Host ('Bloqueios privados: ' + $(if (@($config.suppressedPhones).Count -gt 0) { 'CONFIGURADOS' } else { 'AUSENTES OU VERSAO ANTIGA' }))
+    Write-Host ('Bloqueios privados: ' + $(if (@($config.suppressedPhones | Where-Object { $_ }).Count -gt 0) { 'CONFIGURADOS' } else { 'AUSENTES OU VERSAO ANTIGA' }))
   } catch { Write-Host 'Config privada: INVALIDA' }
 } else { Write-Host 'Config privada: NAO ENCONTRADA' }
 $logPath = Join-Path $root 'activity.log'
