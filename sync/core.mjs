@@ -2,8 +2,6 @@ import { createHash } from 'node:crypto';
 
 export const BASE = 'https://api1.imobibrasil.app/v1/app/';
 export const ACCOUNT_SITE = 'godoyimoveispiracaia.com.br';
-// Mandatory user-defined no-contact suppression, independent of local installer configuration.
-export const BLOCKED_CONTACTS = new Set(['5511971994419']);
 
 /**
  * Conservatively require a real-estate inquiry before creating a CRM lead.
@@ -44,13 +42,13 @@ export function siteMatches(value) {
       u.hostname.toLowerCase().replace(/^www\./, '') === ACCOUNT_SITE;
   } catch { return false; }
 }
-export function collect(snapshot, { activatedAt, now, excludedPhones = [], accounts = ['PRINCIPAL', 'SECUNDÁRIO'] }) {
+export function collect(snapshot, { activatedAt, now, excludedPhones = [], suppressedPhones = [], accounts = ['PRINCIPAL', 'SECUNDÁRIO'] }) {
   if (!Array.isArray(snapshot?.conversas) || !Number.isFinite(Date.parse(snapshot.geradoEm)) ||
       Math.abs(now - Date.parse(snapshot.geradoEm)) > 15 * 60000) throw new Error('source_stale_or_invalid');
-  const excluded = new Set(excludedPhones.flatMap(aliases)), out = new Map();
+  const excluded = new Set([...excludedPhones, ...suppressedPhones].flatMap(aliases)), out = new Map();
   for (const c of snapshot.conversas) {
     const p = phone(c.telefone);
-    if (!p || aliases(p).some(x => BLOCKED_CONTACTS.has(x)) || !accounts.includes(c.conta) || !/@s\.whatsapp\.net$/.test(c.jid || '') ||
+    if (!p || !accounts.includes(c.conta) || !/@s\.whatsapp\.net$/.test(c.jid || '') ||
         !aliases(String(c.jid).split('@')[0]).includes(p) ||
         aliases(p).some(x => excluded.has(x))) continue;
     for (const m of Array.isArray(c.mensagens) ? c.mensagens : []) {
@@ -85,8 +83,8 @@ export function recordPhones(row) {
 }
 export function id(value) { return /^[1-9]\d{0,14}$/.test(String(value)) ? String(value) : null; }
 
-export async function synchronizeOne(event, { store, api, knownPhones, ownership }) {
-  if (aliases(event.phone).some(x => BLOCKED_CONTACTS.has(x)) || !qualifiesRealEstate(event.text)) return 'excluded';
+export async function synchronizeOne(event, { store, api, knownPhones, ownership, suppressedPhones = [] }) {
+  if (aliases(event.phone).some(x => suppressedPhones.flatMap(aliases).includes(x)) || !qualifiesRealEstate(event.text)) return 'excluded';
   let row = store.get(event.phone);
   if (row && ['created', 'existing'].includes(row.status)) return row.status;
   const existing = aliases(event.phone).some(p => knownPhones.has(p));
