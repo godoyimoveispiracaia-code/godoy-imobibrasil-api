@@ -2,6 +2,24 @@ import { createHash } from 'node:crypto';
 
 export const BASE = 'https://api1.imobibrasil.app/v1/app/';
 export const ACCOUNT_SITE = 'godoyimoveispiracaia.com.br';
+
+/**
+ * Conservatively require a real-estate inquiry before creating a CRM lead.
+ * Ambiguous texts, automated advertising and payment/legal conversations are for human review.
+ */
+export function qualifiesRealEstate(value) {
+  if (typeof value !== 'string' || !value.trim() || value.length > 6000) return false;
+  const text = value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ');
+  const unsolicited = /\b(?:black friday|oferta especial|nossos produtos|nossos servicos|sou representante|sou consultor comercial|cupom|promocao de cursos|matricula em curso|inscricao|ingresso|stand up|aqua marina|pranchas|operacao de venda recorrente|pucrs|faap|dutra caminhoes|vivo empresas|prime live)\b/;
+  const restricted = /\b(?:cobranca|cobrar|debito|divida|boleto|comprovante|pix|chave pix|dados bancarios|contrato|aditivo|assinatura digital|clicksign|e-notariado|cpf|rg|notificacao extrajudicial|renegociacao|acordo financeiro|pagamento)\b/;
+  if (unsolicited.test(text) || restricted.test(text)) return false;
+  const property = /\b(?:imovel|imoveis|terreno|terrenos|lote|lotes|casa|casas|chacara|chacaras|sitio|sitios|fazenda|apartamento|apartamentos|condominio|condominios|represa)\b/.test(text)
+    || /\b(?:terras? de santa maria|residencial mariah|porto laranjeiras|rivier[a]? do jaguari|morada do gigante)\b/.test(text)
+    || /godoyimoveispiracaia\.com\.br\/(?:mobile\/)?imovel\//.test(text);
+  const inquiry = /\b(?:quero|queria|procuro|procurando|gostaria|interesse|interessado|interessada|busco|buscando|comprar|compra|vender|venda|alugar|aluguel|locar|locacao|temporada|visita|visitar|agendar|conhecer|informacao|informacoes|preco|precos|valor|valores|tabela|quanto|qual|quais|tem|disponibilidade|disponivel|negociar|avaliacao|avaliar)\b/.test(text);
+  return property && inquiry;
+}
+
 export function phone(value) {
   let n = String(value ?? '').replace(/\D/g, '');
   if (n.length === 10 || n.length === 11) n = '55' + n;
@@ -36,7 +54,7 @@ export function collect(snapshot, { activatedAt, now, excludedPhones = [], accou
     for (const m of Array.isArray(c.mensagens) ? c.mensagens : []) {
       const at = Date.parse(m.quando);
       if (m.sentido !== 'entrada' || m.conta !== c.conta || !Number.isFinite(at) ||
-          at <= activatedAt || at > now + 60000 || typeof m.texto !== 'string' || !m.texto.trim()) continue;
+          at <= activatedAt || at > now + 60000 || typeof m.texto !== 'string' || !m.texto.trim() || !qualifiesRealEstate(m.texto)) continue;
       // No outbound messages, media, commands or decisions inferred from silence.
       if (/^(?:sair|stop|pare|parar|descadastrar|remover meu contato)\s*[.!]?$/i.test(m.texto.trim())) continue;
       const id = createHash('sha256').update(`${c.conta}\0${p}\0${at}\0${m.texto}`).digest('hex');
