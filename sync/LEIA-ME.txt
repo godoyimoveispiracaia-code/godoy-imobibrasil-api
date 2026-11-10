@@ -7,7 +7,7 @@ criado por esta entrega e a permissao de escrita ainda depende da primeira
 inclusao real de um novo contato. Nao existe teste de escrita ficticia em producao.
 
 INSTALACAO NO WINDOWS DO ROBO
-1. Extraia TODOS os arquivos do ZIP numa pasta. Mantenha o robo e o Drive abertos.
+1. Baixe ZIP do repositorio completo GitHub (Code > Download ZIP), extraia TODOS os arquivos e abra a pasta sync. O INSTALAR.bat desta pasta busca probe.js e package.json na raiz automaticamente. Mantenha robo e Drive abertos.
 2. Execute INSTALAR.bat no mesmo usuario Windows que utiliza o robo.
 3. Confirme o caminho do acompanhamento.json, informe numeros internos a excluir
    e digite o usuario e senha do administrador na janela segura do Windows.
