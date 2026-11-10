@@ -114,7 +114,8 @@ export async function main(env = process.env) {
   if (!root) throw new Error('home_missing');
   const config = JSON.parse(fs.readFileSync(path.join(root, 'config.json'), 'utf8').replace(/^\uFEFF/, ''));
   if (config.enabled !== true || !Array.isArray(config.excludedPhones) || !config.excludedPhones.length ||
-      config.excludedPhones.some(x => !phone(x))) throw new Error('configuration_incomplete');
+      config.excludedPhones.some(x => !phone(x)) || !Array.isArray(config.suppressedPhones) ||
+      config.suppressedPhones.length < 1 || config.suppressedPhones.some(x => !phone(x))) throw new Error('configuration_incomplete');
   const source = path.resolve(config.source);
   if (path.basename(source) !== 'acompanhamento.json') throw new Error('invalid_source');
   const readSnapshot = () => {
@@ -129,7 +130,7 @@ export async function main(env = process.env) {
     await api.login();
     if (!store.meta('activatedAt')) {
       // Verify the full read contract before establishing the no-backfill baseline.
-      collect(readSnapshot(), { activatedAt: Date.now(), now: Date.now(), excludedPhones: config.excludedPhones });
+      collect(readSnapshot(), { activatedAt: Date.now(), now: Date.now(), excludedPhones: config.excludedPhones, suppressedPhones: config.suppressedPhones });
       await knownContacts(api.request);
       store.put('activatedAt', Date.now());
       log({ event: 'baseline_created', historicalImport: false });
@@ -141,12 +142,12 @@ export async function main(env = process.env) {
     do {
       try {
         const events = collect(readSnapshot(), {
-          activatedAt: Number(store.meta('activatedAt')), now: Date.now(), excludedPhones: config.excludedPhones });
+          activatedAt: Number(store.meta('activatedAt')), now: Date.now(), excludedPhones: config.excludedPhones, suppressedPhones: config.suppressedPhones });
         const pending = events.filter(e => !['created', 'existing'].includes(store.get(e.phone)?.status));
         if (pending.length) {
           const known = await knownContacts(api.request);
           for (const event of pending) {
-            const status = await synchronizeOne(event, { store, api: api.request, knownPhones: known, ownership: store.ownership });
+            const status = await synchronizeOne(event, { store, api: api.request, knownPhones: known, ownership: store.ownership, suppressedPhones: config.suppressedPhones });
             if (status === 'review') { if (!store.meta('paused')) store.put('paused', 'ambiguous_write_review_required'); break; }
           }
         }
