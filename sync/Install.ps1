@@ -8,6 +8,9 @@ if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { throw 'Arquivo de ac
 $excludedInput = Read-Host 'Numeros seus, dos administradores e internos que NAO devem virar leads (com DDD, separados por virgula)'
 $excluded = @($excludedInput.Split(',') | ForEach-Object { $_ -replace '\D', '' } | Where-Object { $_ })
 if ($excluded.Count -lt 1) { throw 'Informe ao menos seu proprio numero para impedir cadastros internos.' }
+$suppressedInput = Read-Host 'Numeros com bloqueio absoluto NAO CONTATAR, com DDD e separados por virgula (obrigatorio inserir todos)'
+$suppressed = @($suppressedInput.Split(',') | ForEach-Object { $_ -replace '\D', '' } | Where-Object { $_ })
+if ($suppressed.Count -lt 1) { throw 'Informe ao menos o numero com bloqueio absoluto antes da ativacao. Nao coloque em codigo publico.' }
 $credential = Get-Credential -Message 'Administrador do ImobiBrasil. A senha fica protegida pelo Windows deste usuario.'
 if ($null -eq $credential) { throw 'Credencial nao informada.' }
 $root = Join-Path $env:LOCALAPPDATA 'GodoyCRM'
@@ -28,7 +31,7 @@ foreach ($name in @('core.mjs','worker.mjs')) {
     Copy-Item -LiteralPath (Join-Path (Join-Path $PSScriptRoot 'sync') $name) -Destination (Join-Path $root 'sync') -Force
 }
 $credential | Export-Clixml -LiteralPath (Join-Path $root 'credentials.xml')
-@{ enabled = $true; source = $source; excludedPhones = $excluded; nodePath = (Get-Command node).Source } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $root 'config.json') -Encoding UTF8
+@{ enabled = $true; source = $source; excludedPhones = $excluded; suppressedPhones = $suppressed; nodePath = (Get-Command node).Source } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $root 'config.json') -Encoding UTF8
 $env:GODOY_CRM_ONCE = 'true'
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $root 'Run.ps1')
 Remove-Item Env:GODOY_CRM_ONCE
