@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 
 export const BASE = 'https://api1.imobibrasil.app/v1/app/';
 export const ACCOUNT_SITE = 'godoyimoveispiracaia.com.br';
+// Mandatory user-defined no-contact suppression, independent of local installer configuration.
+export const BLOCKED_CONTACTS = new Set(['5511971994419']);
 
 /**
  * Conservatively require a real-estate inquiry before creating a CRM lead.
@@ -48,7 +50,7 @@ export function collect(snapshot, { activatedAt, now, excludedPhones = [], accou
   const excluded = new Set(excludedPhones.flatMap(aliases)), out = new Map();
   for (const c of snapshot.conversas) {
     const p = phone(c.telefone);
-    if (!p || !accounts.includes(c.conta) || !/@s\.whatsapp\.net$/.test(c.jid || '') ||
+    if (!p || aliases(p).some(x => BLOCKED_CONTACTS.has(x)) || !accounts.includes(c.conta) || !/@s\.whatsapp\.net$/.test(c.jid || '') ||
         !aliases(String(c.jid).split('@')[0]).includes(p) ||
         aliases(p).some(x => excluded.has(x))) continue;
     for (const m of Array.isArray(c.mensagens) ? c.mensagens : []) {
@@ -84,6 +86,7 @@ export function recordPhones(row) {
 export function id(value) { return /^[1-9]\d{0,14}$/.test(String(value)) ? String(value) : null; }
 
 export async function synchronizeOne(event, { store, api, knownPhones, ownership }) {
+  if (aliases(event.phone).some(x => BLOCKED_CONTACTS.has(x)) || !qualifiesRealEstate(event.text)) return 'excluded';
   let row = store.get(event.phone);
   if (row && ['created', 'existing'].includes(row.status)) return row.status;
   const existing = aliases(event.phone).some(p => knownPhones.has(p));
