@@ -50,6 +50,13 @@ test('write boundary refuses advertisements and blocked contacts even if feed by
   assert.equal(writes, 0);
 });
 
+test('late opt-out suppresses earlier qualified inquiry', () => {
+  const first = convo();
+  const optOut = {sentido:'entrada', conta:'PRINCIPAL', quando:new Date(now).toISOString(), texto:'NAO ME CONTATE'};
+  const c = {...first, mensagens:[...first.mensagens, optOut]};
+  assert.deepEqual(collect(source([c]), config()), []);
+});
+
 test('snapshot ingestion excludes history, outbound, groups, own contacts and opt-out', () => {
   const base = convo();
   const fixtures = [base, convo({ conta: 'CORRETOR' }), convo({ jid: '123@g.us' }), convo({ telefone: '5511911111111' }),
