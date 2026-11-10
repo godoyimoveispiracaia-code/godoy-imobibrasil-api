@@ -51,7 +51,11 @@ export function collect(snapshot, { activatedAt, now, excludedPhones = [], suppr
     if (!p || !accounts.includes(c.conta) || !/@s\.whatsapp\.net$/.test(c.jid || '') ||
         !aliases(String(c.jid).split('@')[0]).includes(p) ||
         aliases(p).some(x => excluded.has(x))) continue;
-    for (const m of Array.isArray(c.mensagens) ? c.mensagens : []) {
+    const messages = Array.isArray(c.mensagens) ? c.mensagens : [];
+    // Any explicit refusal in the retained history suppresses this entire contact.
+    if (messages.some(m => m.sentido === 'entrada' && typeof m.texto === 'string' &&
+        /^(?:sair|stop|pare|parar|descadastrar|remover meu contato|nao contatar|não contatar|nao me contate|não me contate|nao me envie mensagens|não me envie mensagens|nao quero receber mensagens|não quero receber mensagens)\s*[.!]?$/i.test(m.texto.trim()))) continue;
+    for (const m of messages) {
       const at = Date.parse(m.quando);
       if (m.sentido !== 'entrada' || m.conta !== c.conta || !Number.isFinite(at) ||
           at <= activatedAt || at > now + 60000 || typeof m.texto !== 'string' || !m.texto.trim() || !qualifiesRealEstate(m.texto)) continue;
