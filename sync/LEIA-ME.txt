@@ -65,3 +65,10 @@ PENDENCIAS PARA CONCLUSAO REAL
   e conexoes proprias; nao sao deduzidos a partir de links nas mensagens.
 - Confirmar com ImobiBrasil idempotencia nativa, webhooks e exclusoes incrementais
   antes de ampliar para sincronizacao bidirecional ou atualizacoes de negocios.
+
+FILTRO COMERCIAL OBRIGATORIO (REVISAO 10/11/2026)
+- O executor so prepara novo lead quando houver pedido imobiliario explicito na mensagem recebida. Saudações genericas, textos sem imóvel identificável, anuncios de terceiros, mensagens de bots, cobranças, contratos ou boletos NAO geram cadastro automatico.
+- A perda de alguns leads ambíguos e intencional nesta versao: devem ser qualificados por atendimento humano ou fonte comprovada. Nenhuma resposta ao cliente e enviada por este programa.
+- O instalador requer a lista privada de numeros NAO CONTATAR (inclusive o bloqueio absoluto ja determinado pelo titular). Inclua-os na janela local do Windows; nunca no GitHub, chat, Drive publico ou logs. Sem essa lista o worker nao inicia. Esse filtro e checado tanto na coleta quanto antes de um POST.
+- A alteracao em GitHub/Render nao atualiza automaticamente o programa que rode no PC. Se ja existir a tarefa Windows, NAO reinstalar nem apagar state.sqlite; primeiro conferir versao do codigo, pausar e fazer migracao preservando o estado.
+- Este release nao habilita a sincronizacao no Render; permanece necessaria instalacao local supervisionada e validacao inicial com apenas leituras. Ativar primeira inclusao real somente depois da revisao dos filtros no ambiente local.
